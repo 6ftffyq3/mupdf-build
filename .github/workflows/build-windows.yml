@@ -1,0 +1,52 @@
+name: Build Windows
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        configuration: [Release, ReleaseExtra, ReleaseTofuCjkExt]
+        platform: [x64, Win32]
+
+      # Avoid cancelling of all runs after a single failure.
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
+      - name: Set up environment variables
+        run: |
+          & .\platform\win32\env.bat
+
+      - name: Build
+        run: |
+          cd .\platform\win32\
+          msbuild mupdf.sln /p:PlatformToolset=v143 "/p:Configuration=${{ matrix.configuration }}" "/p:Platform=${{ matrix.platform }}"
+
+      - name: Dist path
+        id: dist-path
+        run: |
+          if ("${{ matrix.platform }}" -eq "Win32") {
+            echo "path=.\platform\win32\" >> ${env:GITHUB_OUTPUT}
+            echo "arch=x86" >> ${env:GITHUB_OUTPUT}
+          } else {
+            echo "path=.\platform\win32\${{ matrix.platform }}\" >> ${env:GITHUB_OUTPUT}
+            echo "arch=x64" >> ${env:GITHUB_OUTPUT}
+          }
+
+      - name: Copy VC Redist
+        run: |
+          Copy-Item -Path "${env:VCToolsRedistDir}${{ steps.dist-path.outputs.arch }}\Microsoft.VC143.CRT\*.dll" -Destination "${{ steps.dist-path.outputs.path }}${{ matrix.configuration }}" -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ${{ steps.dist-path.outputs.path }}
+          name: windows-${{ matrix.configuration }}-${{ matrix.platform }}

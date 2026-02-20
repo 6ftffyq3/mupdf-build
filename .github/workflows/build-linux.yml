@@ -1,0 +1,26 @@
+name: Build Linux
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install xorg-dev libxcursor-dev libxrandr-dev libxinerama-dev mesa-common-dev libgl1-mesa-dev libglu1-mesa-dev
+
+      - name: Build
+        run: |
+          make release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          path: ./build/release
+          name: linux-release
